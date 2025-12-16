@@ -154,7 +154,7 @@ pub struct TrackerTelemetry {
     /// Segment IDs being optimized
     pub segment_ids: Vec<SegmentId>,
     /// Segment UUIDs being optimized
-    pub segment_uuids: Vec<Option<String>>,
+    pub segment_uuids: Vec<String>,
     /// Latest status of the optimizer
     pub status: TrackerStatus,
     /// Start time of the optimizer
