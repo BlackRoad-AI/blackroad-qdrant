@@ -287,8 +287,14 @@ impl UpdateWorkers {
                     break;
                 }
 
-                let nonoptimal_segment_uuids =
-                    segments.read().segment_uuids(&nonoptimal_segment_ids);
+                let nonoptimal_segment_uuids = {
+                    let segments = segments.read();
+                    nonoptimal_segment_ids
+                        .iter()
+                        .filter_map(|id| segments.get(*id))
+                        .map(|segment| segment.get().read().segment_uuid())
+                        .collect::<Vec<_>>()
+                };
 
                 log::debug!(
                     "Optimizer '{}' running on segments: {:?}",
