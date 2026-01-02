@@ -1,5 +1,4 @@
 use std::cmp::{max, min};
-use std::mem;
 use std::sync::atomic::Ordering;
 use std::thread::JoinHandle;
 
@@ -62,6 +61,8 @@ impl SegmentHolder {
             .map(|segment| Self::aloha_lock_segment_read(segment))
             .collect();
 
+        let max_applied_version = segment_reads.iter().map(|s| s.version()).max().unwrap_or(0);
+
         if !sync && self.is_background_flushing() {
             // There is already a background flush ongoing, return current max persisted version
             return Ok(self.get_max_persisted_version(segment_reads, lock_order));
@@ -79,7 +80,11 @@ impl SegmentHolder {
             for read_segment in segment_reads.iter() {
                 read_segment.flush(force)?;
             }
+            self.flush_dependency
+                .lock()
+                .retain(|_, _, version| *version > max_applied_version);
         } else {
+            let flush_dependency = self.flush_dependency.clone();
             let flushers: Vec<_> = segment_reads
                 .iter()
                 .filter_map(|read_segment| read_segment.flusher(force))
@@ -92,6 +97,9 @@ impl SegmentHolder {
                         for flusher in flushers {
                             flusher()?;
                         }
+                        flush_dependency
+                            .lock()
+                            .retain(|_, _, version| *version > max_applied_version);
                         Ok(())
                     })
                     .unwrap(),
@@ -111,7 +119,7 @@ impl SegmentHolder {
     }
 
     fn sort_segment_ids_by_flush_dependency(&self, segment_ids: &[SegmentId]) -> Vec<SegmentId> {
-        let flush_topology = mem::take(&mut *self.flush_dependency.lock());
+        let flush_topology = self.flush_dependency.lock().clone();
         let mut iter = flush_topology.sort_elements(segment_ids);
         let sorted_keys: Vec<_> = iter.by_ref().collect();
 
