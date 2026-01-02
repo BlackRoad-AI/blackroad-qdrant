@@ -125,8 +125,7 @@ impl SegmentHolder {
         #[cfg(feature = "staging")]
         if !remaining.is_empty() {
             log::warn!(
-                "circular dependencies detected in flush topology for segments: {:?}",
-                remaining
+                "circular dependencies detected in flush topology for segments: {remaining:?}"
             );
         }
 
